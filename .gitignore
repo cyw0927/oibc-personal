@@ -1,0 +1,24 @@
+# Never track competition data or predictions
+*.csv
+*.parquet
+*.arrow
+*.feather
+*.zip
+*.pkl
+*.pickle
+*.joblib
+*.npy
+*.npz
+*.pt
+*.pth
+*.onnx
+*.pdf
+.env*
+data/
+outputs/
+artifacts/
+models/
+__pycache__/
+.pytest_cache/
+.venv/
+STATUS.md
