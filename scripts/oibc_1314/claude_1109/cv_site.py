@@ -5,6 +5,7 @@ Variants:
   A  organizer-baseline features, L1                      (~ organizer baseline with L1)
   B  all features (station context, regional, cs, extras), L1
   C  B + sample weight SMP*k
+  BT  B + recency sample weight (half-life 180 d; forecast-provider bias drifts over time, Kang & Tam 2015)
   L2 / L2E  B / E features and sizes with squared-error objective (conditional mean, organizer-baseline style)
 Rows of both forecast rounds are stacked (round is a feature); the prediction is the mean over rounds.
 Group sums over the sites present in each hour, README provisional group penalty (#990 reference groups).
@@ -17,8 +18,9 @@ import numpy as np
 import pandas as pd
 
 D, TRAIN, OUT = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
-VARIANTS = [v for v in sys.argv[4:] if not v.startswith(("folds=", "savesite="))]
+VARIANTS = [v for v in sys.argv[4:] if not v.startswith(("folds=", "savesite=", "abias="))]
 SAVESITE = next((v[9:] for v in sys.argv[4:] if v.startswith("savesite=")), None)   # optional site-level OOF parquet
+ABIAS = next((v[6:] for v in sys.argv[4:] if v.startswith("abias=")), None)   # station|global: provider-A cloud bias drift correction
 FOLDS = next((v[6:].split(",") for v in sys.argv[4:] if v.startswith("folds=")), None)
 KST = "Asia/Seoul"
 BASE = ["wa_cloud", "wa_temp", "wa_humidity", "wa_rain", "wa_wind_speed", "wa_ground_press",
@@ -32,6 +34,9 @@ d = pd.read_parquet(TRAIN)
 d["ts"] = d.ts.dt.tz_convert(KST)
 smp = pd.read_csv(D / "train" / "smp.csv")
 smp["ts"] = pd.to_datetime(smp.ts).dt.tz_convert(KST)
+if ABIAS:
+    from abias import apply as _abias
+    d = _abias(d, D, ABIAS)
 d = d.merge(smp, on="ts", how="left")
 d["k"] = np.where(d.ts.dt.hour.between(11, 15), 3, 1).astype("int8")
 d = d[d.energy.notna()]
@@ -47,7 +52,7 @@ if any(v.endswith("S") for v in VARIANTS):
 d["cf"] = (d.energy / d.capacity_kw).clip(0, 1.2).astype("float32")
 d["group"] = d.current_group.map({"A": "G1", "B": "G2"})
 ALL = [c for c in d.columns if c not in DROP and c != "group" and "_pch" not in c and "_pcd" not in c and "_nb" not in c]
-FEATS = {"A": BASE, "B": ALL, "C": ALL, "E": ALL, "G": ALL, "L2": ALL, "L2E": ALL}
+FEATS = {"A": BASE, "B": ALL, "C": ALL, "E": ALL, "G": ALL, "L2": ALL, "L2E": ALL, "BT": ALL}
 if any(v.endswith("S") for v in VARIANTS):
     FEATS.update({"BS": ALL + SPF, "ES": ALL + SPF})
 VPARAMS_ALIAS = {"ES": "E"}
@@ -71,6 +76,9 @@ for M in pd.period_range("2024-06", "2025-05", freq="M"):
         w = None
         if v == "C":
             w = (tr.k * tr.smp.clip(lower=1)).to_numpy(); w = w / w.mean()
+        if v == "BT":                                                     # recency weight, half-life 180 days before the cut
+            age = (st - tr.ts).dt.total_seconds().to_numpy() / 86400.0
+            w = np.power(0.5, age / 180.0); w = w / w.mean()
         m = lgb.LGBMRegressor(**{**PARAMS, **VPARAMS.get(VPARAMS_ALIAS.get(v, v), {})}).fit(tr[f], tr.cf, sample_weight=w)
         p = np.where(te.elev > 0, np.clip(m.predict(te[f]), 0, None), 0.0) * te.capacity_kw.to_numpy()
         pr = te[["site_id", "ts"]].assign(p=p).groupby(["site_id", "ts"]).p.mean().rename(v).reset_index()
