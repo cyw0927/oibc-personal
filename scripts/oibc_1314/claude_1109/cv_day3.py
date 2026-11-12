@@ -26,7 +26,8 @@ import numpy as np
 import pandas as pd
 
 D, TRAIN, OUT = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
-FOLDS = [a for a in sys.argv[4:] if not a.startswith("savesite=")]
+FOLDS = [a for a in sys.argv[4:] if not a.startswith(("savesite=", "ecmwf="))]
+ECMWF = next((a[6:] for a in sys.argv[4:] if a.startswith("ecmwf=")), None)   # optional ECMWF open-data site-day ssrd (09-15 KST) parquet
 SAVESITE = next((a[9:] for a in sys.argv[4:] if a.startswith("savesite=")), None)
 KST = "Asia/Seoul"
 DROP = {"site_id", "ts", "energy", "wa_station", "wb_station", "current_group", "smp", "k", "cf", "w", "group", "day"}
@@ -80,6 +81,13 @@ day = day.merge(obs.reset_index(), on=["site_id", "day"], how="left")
 day["complete"] = day.n_e == day.nlit
 day["kd"] = (day.esum / (day.capacity_kw * day.csum)).clip(0, 1.5)
 day["doy"] = day.day.dt.dayofyear
+if ECMWF:
+    ec = pd.read_parquet(ECMWF)[["site_id", "day", "ssrd"]]
+    ec["day"] = pd.to_datetime(ec.day).dt.tz_localize(KST)
+    ec["ec_ssrd_reg"] = ec.groupby("day").ssrd.transform("mean")
+    day = day.merge(ec.rename(columns={"ssrd": "ec_ssrd"}), on=["site_id", "day"], how="left")
+    day["ec_kt"] = (day.ec_ssrd / (day.csum.clip(lower=0.1) / day.nlit.clip(lower=1) * 1000)).astype("float32")
+    print("ecmwf coverage", round(day.ec_ssrd.notna().mean(), 3), flush=True)
 DF = [c for c in day.columns if c not in ("site_id", "day", "esum", "n_e", "complete", "kd", "nlit")]
 print("day rows", len(day), "complete", int(day.complete.sum()), "features", len(DF), flush=True)
 

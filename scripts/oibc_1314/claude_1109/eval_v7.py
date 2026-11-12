@@ -11,7 +11,8 @@ import numpy as np
 import pandas as pd
 
 D, PS, COMP, OUT = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4])
-DUMP = Path(sys.argv[5]) if len(sys.argv) > 5 else None          # optional: write group-hour predictions per composition
+DUMP = Path(sys.argv[5]) if len(sys.argv) > 5 and sys.argv[5] != "-" else None
+DSUF = sys.argv[6] if len(sys.argv) > 6 else ""                     # optional day-model file suffix, e.g. _ec          # optional: write group-hour predictions per composition
 KST = "Asia/Seoul"
 FOLDS = ["2024-07", "2024-10", "2025-01", "2025-02", "2025-04"]
 cv = PS / "cv"
@@ -27,8 +28,8 @@ def load(f, cols):
 
 e = load("site_level_E_5f.parquet", ["energy", "smp", "k", "E"])
 b = load("site_level_B21_12m.parquet", ["B"]).rename(columns={"B": "B21"})
-d23 = load("site_level_day23.parquet", ["B", "D_s0", "D_s1"]).rename(columns={"B": "h23", "D_s0": "d23a", "D_s1": "d23b"})
-d21 = load("site_level_day21.parquet", ["B", "D_s0", "D_s1"]).rename(columns={"B": "h21", "D_s0": "d21a", "D_s1": "d21b"})
+d23 = load(f"site_level_day23{DSUF}.parquet", ["B", "D_s0", "D_s1"]).rename(columns={"B": "h23", "D_s0": "d23a", "D_s1": "d23b"})
+d21 = load(f"site_level_day21{DSUF}.parquet", ["B", "D_s0", "D_s1"]).rename(columns={"B": "h21", "D_s0": "d21a", "D_s1": "d21b"})
 s = e.merge(b, on=["site_id", "ts", "fold"]).merge(d23, on=["site_id", "ts", "fold"]).merge(d21, on=["site_id", "ts", "fold"])
 print("site rows", len(s), {n: len(x) for n, x in (("E", e), ("B21", b), ("d23", d23), ("d21", d21))})
 s["day"] = (s.ts - pd.Timedelta(hours=1)).dt.normalize()

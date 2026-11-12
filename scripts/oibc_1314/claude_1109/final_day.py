@@ -18,6 +18,7 @@ import pandas as pd
 D, FD, HB, BASE, OUT = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4]), Path(sys.argv[5])
 ALPHA = float(sys.argv[6])
 SEEDS = [int(s) for s in (sys.argv[7] if len(sys.argv) > 7 else "0").split(",")]
+ECMWF = next((a[6:] for a in sys.argv[8:] if a.startswith("ecmwf=")), None)   # optional ECMWF open-data site-day ssrd parquet (same features as cv_day3)
 KST = "Asia/Seoul"
 CUT = pd.Timestamp("2025-06-01", tz=KST)
 DPARAMS = dict(objective="regression_l1", n_estimators=1500, learning_rate=0.03, num_leaves=63, min_child_samples=50,
@@ -59,6 +60,13 @@ def day_table(d):
         obs = d[(d.elev > 0) & (d["round"] == 17)].groupby(["site_id", "day"]).agg(esum=("energy", "sum"), n_e=("energy", "count"))
         day = day.merge(obs.reset_index(), on=["site_id", "day"], how="left")
     day["doy"] = day.day.dt.dayofyear
+    if ECMWF:
+        ec = pd.read_parquet(ECMWF)[["site_id", "day", "ssrd"]]
+        ec["day"] = pd.to_datetime(ec.day).dt.tz_localize(KST)
+        ec["ec_ssrd_reg"] = ec.groupby("day").ssrd.transform("mean")
+        day = day.merge(ec.rename(columns={"ssrd": "ec_ssrd"}), on=["site_id", "day"], how="left")
+        day["ec_kt"] = (day.ec_ssrd / (day.csum.clip(lower=0.1) / day.nlit.clip(lower=1) * 1000)).astype("float32")
+        print("ecmwf coverage", round(day.ec_ssrd.notna().mean(), 3), flush=True)
     return day
 
 
@@ -103,7 +111,7 @@ fc["ts"] = fc["ts"].dt.strftime("%Y-%m-%d %H:%M:%S%z").str.replace(r"(\+\d{2})(\
 fc.to_csv(OUT / "forecast.csv", index=False, lineterminator="\n", float_format="%.6f")
 gd.to_parquet(OUT / "day_ratio.parquet", index=False)
 man = {"candidate_id": OUT.name, "method": "base forecast x (1 + alpha*(group-day ratio - 1)); ratio from site-day model / hourly B",
-       "alpha": ALPHA, "seeds": SEEDS, "external_data": False,
+       "alpha": ALPHA, "seeds": SEEDS, "external_data": ({"source": "ECMWF IFS open data (CC BY 4.0), 12Z D-2 run, ssrd 36-42h", "file": ECMWF, "sha256": sha(ECMWF)} if ECMWF else False),
        "inputs_sha256": {"base_forecast.csv": sha(BASE), "hourly_sites": sha(HB), "site_train": sha(FD / "site_train.parquet"), "site_test": sha(FD / "site_test.parquet")},
        "outputs_sha256": {"composition.csv": sha(OUT / "composition.csv"), "forecast.csv": sha(OUT / "forecast.csv")},
        "totals_gwh": {"base": round(bf.forecast_kwh.sum() / 1e6, 3), "out": round(bf.out.sum() / 1e6, 3)},
