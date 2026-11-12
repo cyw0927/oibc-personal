@@ -12,6 +12,7 @@ import pandas as pd
 
 D, FD, V, OUT = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3], sys.argv[4]
 SEEDS = [int(s) for s in (sys.argv[5] if len(sys.argv) > 5 else "0").split(",")]
+ECHR = next((a[5:] for a in sys.argv[6:] if a.startswith("echr=")), None)   # ECMWF 3-hourly fixed-box ssrd by ts (no site coordinates)
 KST = "Asia/Seoul"
 BASE = ["wa_cloud", "wa_temp", "wa_humidity", "wa_rain", "wa_wind_speed", "wa_ground_press",
         "wb_cloud", "wb_temp", "wb_rel_hum", "wb_uv_idx", "wb_precip_prob", "wb_total_liq", "wb_vis", "wb_wind_speed",
@@ -27,6 +28,9 @@ tr["ts"] = tr.ts.dt.tz_convert(KST)
 smp = pd.read_csv(D / "train" / "smp.csv")
 smp["ts"] = pd.to_datetime(smp.ts).dt.tz_convert(KST)
 tr = tr.merge(smp, on="ts", how="left")
+if ECHR:
+    eh = pd.read_parquet(ECHR); eh["ts"] = pd.to_datetime(eh.ts).dt.tz_convert(KST)
+    tr = tr.merge(eh, on="ts", how="left")
 tr["k"] = np.where(tr.ts.dt.hour.between(11, 15), 3, 1)
 tr = tr[tr.energy.notna() & (tr.elev > 0)]
 tr["cf"] = (tr.energy / tr.capacity_kw).clip(0, 1.2)
@@ -38,6 +42,8 @@ if V == "C":
 
 te = pd.read_parquet(FD / "site_test.parquet")
 te["ts"] = te.ts.dt.tz_convert(KST)
+if ECHR:
+    te = te.merge(eh, on="ts", how="left"); print("ech test coverage", round(te.ech_box.notna().mean(), 3), flush=True)
 assert set(feats) <= set(te.columns), set(feats) - set(te.columns)
 pred = np.zeros(len(te))
 for s in SEEDS:

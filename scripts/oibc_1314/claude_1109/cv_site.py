@@ -18,8 +18,9 @@ import numpy as np
 import pandas as pd
 
 D, TRAIN, OUT = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
-VARIANTS = [v for v in sys.argv[4:] if not v.startswith(("folds=", "savesite=", "abias="))]
+VARIANTS = [v for v in sys.argv[4:] if not v.startswith(("folds=", "savesite=", "abias=", "echr="))]
 SAVESITE = next((v[9:] for v in sys.argv[4:] if v.startswith("savesite=")), None)   # optional site-level OOF parquet
+ECHR = next((v[5:] for v in sys.argv[4:] if v.startswith("echr=")), None)   # ECMWF 3-hourly fixed-box ssrd by ts (no site coordinates)
 ABIAS = next((v[6:] for v in sys.argv[4:] if v.startswith("abias=")), None)   # station|global: provider-A cloud bias drift correction
 FOLDS = next((v[6:].split(",") for v in sys.argv[4:] if v.startswith("folds=")), None)
 KST = "Asia/Seoul"
@@ -38,6 +39,9 @@ if ABIAS:
     from abias import apply as _abias
     d = _abias(d, D, ABIAS)
 d = d.merge(smp, on="ts", how="left")
+if ECHR:
+    eh = pd.read_parquet(ECHR); eh["ts"] = pd.to_datetime(eh.ts).dt.tz_convert(KST)
+    d = d.merge(eh, on="ts", how="left"); print("ech coverage", round(d.ech_box.notna().mean(), 3), flush=True)
 d["k"] = np.where(d.ts.dt.hour.between(11, 15), 3, 1).astype("int8")
 d = d[d.energy.notna()]
 SP = Path(str(TRAIN)).parent.parent / "spatial"

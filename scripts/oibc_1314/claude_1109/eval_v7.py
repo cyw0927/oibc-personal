@@ -12,7 +12,8 @@ import pandas as pd
 
 D, PS, COMP, OUT = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4])
 DUMP = Path(sys.argv[5]) if len(sys.argv) > 5 and sys.argv[5] != "-" else None
-DSUF = sys.argv[6] if len(sys.argv) > 6 else ""                     # optional day-model file suffix, e.g. _ec          # optional: write group-hour predictions per composition
+DSUF = sys.argv[6] if len(sys.argv) > 6 else ""
+SSUF = sys.argv[7] if len(sys.argv) > 7 else ""                     # optional site-model (E, B21) file suffix, e.g. _hb                     # optional day-model file suffix, e.g. _ec          # optional: write group-hour predictions per composition
 KST = "Asia/Seoul"
 FOLDS = ["2024-07", "2024-10", "2025-01", "2025-02", "2025-04"]
 cv = PS / "cv"
@@ -26,8 +27,8 @@ def load(f, cols):
     return x[x.fold.astype(str).isin(FOLDS)][["site_id", "ts", "fold"] + cols]
 
 
-e = load("site_level_E_5f.parquet", ["energy", "smp", "k", "E"])
-b = load("site_level_B21_12m.parquet", ["B"]).rename(columns={"B": "B21"})
+e = load(f"site_level_E_5f{SSUF}.parquet", ["energy", "smp", "k", "E"])
+b = load(f"site_level_B21_12m{SSUF}.parquet", ["B"]).rename(columns={"B": "B21"})
 d23 = load(f"site_level_day23{DSUF}.parquet", ["B", "D_s0", "D_s1"]).rename(columns={"B": "h23", "D_s0": "d23a", "D_s1": "d23b"})
 d21 = load(f"site_level_day21{DSUF}.parquet", ["B", "D_s0", "D_s1"]).rename(columns={"B": "h21", "D_s0": "d21a", "D_s1": "d21b"})
 s = e.merge(b, on=["site_id", "ts", "fold"]).merge(d23, on=["site_id", "ts", "fold"]).merge(d21, on=["site_id", "ts", "fold"])
