@@ -26,7 +26,8 @@ import numpy as np
 import pandas as pd
 
 D, TRAIN, OUT = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
-FOLDS = [a for a in sys.argv[4:] if not a.startswith(("savesite=", "ecmwf="))]
+FOLDS = [a for a in sys.argv[4:] if not a.startswith(("savesite=", "ecmwf=", "ecbox="))]
+ECBOX = next((a[6:] for a in sys.argv[4:] if a.startswith("ecbox=")), None)   # optional ECMWF fixed-box daily means (no site coordinates)
 ECMWF = next((a[6:] for a in sys.argv[4:] if a.startswith("ecmwf=")), None)   # optional ECMWF open-data site-day ssrd (09-15 KST) parquet
 SAVESITE = next((a[9:] for a in sys.argv[4:] if a.startswith("savesite=")), None)
 KST = "Asia/Seoul"
@@ -88,6 +89,10 @@ if ECMWF:
     day = day.merge(ec.rename(columns={"ssrd": "ec_ssrd"}), on=["site_id", "day"], how="left")
     day["ec_kt"] = (day.ec_ssrd / (day.csum.clip(lower=0.1) / day.nlit.clip(lower=1) * 1000)).astype("float32")
     print("ecmwf coverage", round(day.ec_ssrd.notna().mean(), 3), flush=True)
+if ECBOX:
+    eb = pd.read_parquet(ECBOX); eb["day"] = pd.to_datetime(eb.day).dt.tz_localize(KST)
+    day = day.merge(eb, on="day", how="left")
+    print("ecmwf box coverage", round(day.ec_box.notna().mean(), 3), flush=True)
 DF = [c for c in day.columns if c not in ("site_id", "day", "esum", "n_e", "complete", "kd", "nlit")]
 print("day rows", len(day), "complete", int(day.complete.sum()), "features", len(DF), flush=True)
 
