@@ -41,7 +41,7 @@ if ABIAS:
 d = d.merge(smp, on="ts", how="left")
 if ECHR:
     eh = pd.read_parquet(ECHR); eh["ts"] = pd.to_datetime(eh.ts).dt.tz_convert(KST)
-    d = d.merge(eh, on="ts", how="left"); print("ech coverage", round(d.ech_box.notna().mean(), 3), flush=True)
+    d = d.merge(eh, on="ts", how="left"); print("echr cols", [c for c in eh.columns if c != "ts"], "coverage", round(d[eh.columns[1]].notna().mean(), 3), flush=True)
 d["k"] = np.where(d.ts.dt.hour.between(11, 15), 3, 1).astype("int8")
 d = d[d.energy.notna()]
 SP = Path(str(TRAIN)).parent.parent / "spatial"

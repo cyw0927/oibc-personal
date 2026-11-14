@@ -43,7 +43,7 @@ if V == "C":
 te = pd.read_parquet(FD / "site_test.parquet")
 te["ts"] = te.ts.dt.tz_convert(KST)
 if ECHR:
-    te = te.merge(eh, on="ts", how="left"); print("ech test coverage", round(te.ech_box.notna().mean(), 3), flush=True)
+    te = te.merge(eh, on="ts", how="left"); print("echr test coverage", round(te[eh.columns[1]].notna().mean(), 3), flush=True)
 assert set(feats) <= set(te.columns), set(feats) - set(te.columns)
 pred = np.zeros(len(te))
 for s in SEEDS:

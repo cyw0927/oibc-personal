@@ -2,8 +2,9 @@
 Run 12Z D-2, (+42h - +36h)/21600 = target day 09-15 KST mean W/m2, box 34-38N/126-130E.
 Output per day: ens_med, ens_mean, ens_sd, ens_p10, ens_p90 over the 10 members.
 Usage: ecmwf_ens_box_fetch.py <out.parquet> <first_day> <last_day>
+Resumable: each finished day is appended to <out>.jsonl; reruns skip days already there and keep retrying failures (up to 6 passes).
 """
-import json, sys, threading, time, urllib.request
+import json, os, sys, threading, time, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 import eccodes, numpy as np, pandas as pd
 LOCK = threading.Lock()   # eccodes decoding is not thread-safe
@@ -44,7 +45,31 @@ def get(day):
     print("FAIL", day.date(), err, flush=True)
 
 
-with ThreadPoolExecutor(4) as ex:
-    rows = [r for r in ex.map(get, pd.date_range(D0, D1)) if r]
-out = pd.DataFrame(rows); out.to_parquet(OUT, index=False)
+CACHE = OUT + ".jsonl"
+WLOCK = threading.Lock()
+
+
+def done():
+    if not os.path.exists(CACHE):
+        return set()
+    return {json.loads(l)["day"][:10] for l in open(CACHE, encoding="utf-8") if l.strip()}
+
+
+def work(day):
+    r = get(day)
+    if r:
+        with WLOCK, open(CACHE, "a", encoding="utf-8") as f:
+            f.write(json.dumps({k: (str(v.date()) if k == "day" else float(v)) for k, v in r.items()}) + chr(10))
+
+
+for p in range(6):
+    todo = [d for d in pd.date_range(D0, D1) if str(d.date()) not in done()]
+    print(f"pass {p}: {len(todo)} days to fetch", flush=True)
+    if not todo:
+        break
+    with ThreadPoolExecutor(3) as ex:
+        list(ex.map(work, todo))
+    time.sleep(120)
+out = pd.read_json(CACHE, lines=True); out["day"] = pd.to_datetime(out.day)
+out = out.drop_duplicates("day").sort_values("day"); out.to_parquet(OUT, index=False)
 print(len(out), "days", out.drop(columns="day").describe().round(1).to_dict(), flush=True)

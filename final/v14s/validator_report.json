@@ -1,0 +1,51 @@
+{
+  "passed": true,
+  "errors": [],
+  "info": {
+    "validator_version": "oibc-submission-validator-v0.1",
+    "scope": "README_CONTRACT_PREFLIGHT_ONLY",
+    "official_submission_approved": false,
+    "capacity_report": {
+      "passed": true,
+      "errors": [],
+      "info": {
+        "validator_version": "vpp-capacity-validator-v0.1",
+        "rule_version": "oibc2026-readme-d8475954-capacity-v0.1-unreviewed",
+        "capacity_unit": "kW",
+        "capacity_quantum": "0.001",
+        "inclusive": true,
+        "min_capacity": "20000",
+        "groups": {
+          "G1": {
+            "plant_count": 121,
+            "capacity": "20028.010",
+            "capacity_margin": "28.010"
+          },
+          "G2": {
+            "plant_count": 132,
+            "capacity": "22627.360",
+            "capacity_margin": "2627.360"
+          }
+        },
+        "totals_complete": true,
+        "site_rows": 253,
+        "unique_site_ids": 253,
+        "assignment_rows": 253
+      }
+    },
+    "evaluation_reference_valid": true,
+    "evaluation_rows": 8760,
+    "evaluation_unique_times": 8760,
+    "forecast_rows": 17520,
+    "forecast_unique_keys": 17520,
+    "expected_forecast_rows": 17520,
+    "key_sets_match": true,
+    "input_sha256": {
+      "sites": "19763c2efbfc23fcd9a6d333aeb3239bb456903609213e49b3fb0107020ae00a",
+      "composition": "1e42864de9b9545f96b5700efd6682f90def2b8fb1483131ac052e5c331b38e2",
+      "forecast": "07c194888c66e7021e382e9124d1f07053d1b5778f7b0e23e67d88ccd1323c6b",
+      "evaluation_smp": "396bfadb73332f5b8ce61821ad9425ee93052ced2b71f0666cf071d2b95fa79c",
+      "rule": "8fe3a89b7ce9212a81ea6adeafeadca0a612a6d676a86dc6705549597780d7ae"
+    }
+  }
+}

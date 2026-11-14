@@ -35,7 +35,7 @@ s = e.merge(b, on=["site_id", "ts", "fold"]).merge(d23, on=["site_id", "ts", "fo
 print("site rows", len(s), {n: len(x) for n, x in (("E", e), ("B21", b), ("d23", d23), ("d21", d21))})
 s["day"] = (s.ts - pd.Timedelta(hours=1)).dt.normalize()
 res = []
-for comp, H in (("ref", "group_cv.parquet"), ("comp", "group_cv_comp.parquet")):
+for comp, H in (("ref", "group_cv.parquet"), ("comp", f"group_cv_comp{__import__('os').environ.get('OIBC_HSUF', '')}.parquet")):
     x = s.assign(group=s.site_id.map(GRP[comp]))
     g = x.groupby(["fold", "group", "ts"]).agg(day=("day", "first"), energy=("energy", "sum"), smp=("smp", "first"), k=("k", "first"),
                                                E=("E", "sum"), B21=("B21", "sum"), h23=("h23", "sum"), d23a=("d23a", "sum"), d23b=("d23b", "sum"),

@@ -26,7 +26,8 @@ import numpy as np
 import pandas as pd
 
 D, TRAIN, OUT = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
-FOLDS = [a for a in sys.argv[4:] if not a.startswith(("savesite=", "ecmwf=", "ecbox="))]
+FOLDS = [a for a in sys.argv[4:] if not a.startswith(("savesite=", "ecmwf=", "ecbox=", "ecboxpred="))]
+ECBOXP = next((a[10:] for a in sys.argv[4:] if a.startswith("ecboxpred=")), None)   # emulation: train on ecbox, predict scored month with these day-level columns (e.g. fresher ECMWF 00Z D-1)
 ECBOX = next((a[6:] for a in sys.argv[4:] if a.startswith("ecbox=")), None)   # optional ECMWF fixed-box daily means (no site coordinates)
 ECMWF = next((a[6:] for a in sys.argv[4:] if a.startswith("ecmwf=")), None)   # optional ECMWF open-data site-day ssrd (09-15 KST) parquet
 SAVESITE = next((a[9:] for a in sys.argv[4:] if a.startswith("savesite=")), None)
@@ -111,6 +112,10 @@ for M in FOLDS:
         day=("day", "first"), group=("group", "first"), energy=("energy", "first"), smp=("smp", "first"), k=("k", "first"), B=("B", "mean")).reset_index()
     dtr = day[(day.day < st.normalize()) & day.complete & (day.csum > 0)]
     dte = day[(day.day >= st.normalize()) & (day.day <= en.normalize() - pd.Timedelta(days=1))]
+    if ECBOXP:
+        ep = pd.read_parquet(ECBOXP); ep["day"] = pd.to_datetime(ep.day).dt.tz_localize(KST); cols = [c for c in ep.columns if c != "day"]
+        dte = dte.drop(columns=cols).merge(ep, on="day", how="left")
+        dte[cols] = dte[cols].fillna(day.loc[dte.index.intersection(day.index), cols].mean()) if False else dte[cols]
     sb = h.groupby(["site_id", "day"]).B.transform("sum")
     A = ["B"]
     imp = {}

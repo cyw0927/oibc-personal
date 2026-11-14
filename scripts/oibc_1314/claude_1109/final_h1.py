@@ -1,6 +1,6 @@
 """Fit group-direct H1 (v0.2 group features + day context, HGB L1, 3 configs) on 2023-06-01 01:00..2025-06-01 00:00 and
 predict the evaluation year for the groups defined in <dataset>/sites.csv (current_group A->G1, B->G2).
-Same model as final_predict.py's H1 arm. Usage: final_h1.py <dataset> <feat_dir> <out_group.parquet>
+Same model as final_predict.py's H1 arm. Usage: final_h1.py <dataset> <feat_dir> <out_group.parquet> [echr=<hourly fixed-box parquet>]
 """
 import sys
 from pathlib import Path
@@ -27,12 +27,19 @@ base = [c for c in te0.columns if c not in NON]
 allf = pd.concat([tr0, te0], ignore_index=True); allf["ts"] = allf.ts.dt.as_unit("us")
 assert not allf.duplicated(["group", "ts"]).any()
 allf, new = add_ctx(allf)
+ECHR = next((a[5:] for a in sys.argv[4:] if a.startswith("echr=")), None)
+gx = []
+if ECHR:
+    eh = pd.read_parquet(ECHR); eh["ts"] = pd.to_datetime(eh.ts).dt.tz_convert(KST).dt.as_unit("us")
+    gx = [c for c in eh.columns if c != "ts"]
+    allf = allf.merge(eh, on="ts", how="left")
+    print("echr test coverage", round(allf[allf.split == "test"][gx[0]].notna().mean(), 3), flush=True)
 ft = allf[allf.split == "train"].merge(smp, on="ts", how="left")
 ft["cov"] = ft.cap_avail / ft.group_cap_kw; ft["cf"] = (ft.energy / ft.cap_avail).clip(0, 1.2)
 keys = pd.MultiIndex.from_product([["G1", "G2"], smp_te.ts], names=["group", "ts"]).to_frame(index=False)
 te = keys.merge(allf[allf.split == "test"], on=["group", "ts"], how="left")
 assert len(te) == 17520 and te.cosz.notna().all()
-feats = base + new
+feats = base + new + gx
 tr = ft[(ft.ts >= FIT_START) & (ft.ts <= FULL_END) & ft.energy.notna() & (ft["cov"] >= 0.3) & (ft.cosz_max > 0)]
 sw = tr["cov"].values * tr.k.values * np.clip(tr.smp.values, 1, None) / tr.smp.clip(lower=1).mean()
 cf = np.mean([np.clip(HistGradientBoostingRegressor(loss="absolute_error", l2_regularization=1.0, early_stopping=False, random_state=0, **c)

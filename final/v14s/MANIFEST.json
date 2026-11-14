@@ -1,0 +1,46 @@
+{
+ "candidate_id": "Y1314_v14s_seed4",
+ "method": "0.90 * v10s + 0.05 * AnEn + 0.05 * ECMWF physical (rows where both exist; otherwise v10s)",
+ "anen": "Delle Monache 2013 / Alessandrini 2015 analog ensemble, group cf, N=20, +-1h window, predictors gx_dsw, gx_tcc (GFS 00Z D-1 box), wa_cloud, wb_cloud (provided), e0 (box centre); analogs only from days < 2025-06-01",
+ "physical": "Lorenz 2009/2011 style: PR(hour) median over training hours 2024-03..2025-05 x group capacity x ECMWF hourly SSRD box mean / 1000",
+ "cv": "12-month OOF (rolling, test-transferable PR): 11 months v10 158.884M -> 156.773M (-1.33%, 9/11); LOMO weight choice -0.69% (8/11)",
+ "external_data": {
+  "inherited": {
+   "used": true,
+   "sources": {
+    "sources": [
+     "ECMWF IFS open data (CC BY 4.0), AWS ecmwf-forecasts, 12Z D-2 run, ssrd +36h/+42h (target day 09-15 KST)",
+     "NOAA GFS 0.25 (public domain), AWS noaa-gfs-bdp-pds, 00Z D-1 run, f030 DSWRF/TCDC 24-30h average (target day 09-15 KST)"
+    ],
+    "aggregation": "fixed boxes 34-38N/126-130E (+N/S halves), no site coordinates",
+    "file": "personal_safe/gfs/box_ecgf.parquet",
+    "sha256_8": "1cdb555e"
+   },
+   "added_in_v10": {
+    "source": "NOAA GFS 1.0deg (public domain, AWS noaa-gfs-bdp-pds), 00Z D-1 run, leads 21-36h, fixed-box means 34-38N/126-130E + N/S halves (no site coordinates)",
+    "hourly_site_models": {
+     "file": "C:/Users/dkrak/Documents/Codex/OIBC_1314_review/personal_safe/gfs/gfs_rich.parquet",
+     "sha256": "c3f6628c66c41c972d9202c8a179fa305bcd077bb4753d2f27d94e8d7de7cf39"
+    },
+    "day_models": {
+     "file": "C:/Users/dkrak/Documents/Codex/OIBC_1314_review/personal_safe/gfs/box_rich.parquet",
+     "sha256": "50532475412effd0f6dc260f4fe4726655e663570904d686e24f8c4a84d164ad"
+    }
+   }
+  },
+  "added": {
+   "source": "ECMWF IFS open data (CC BY 4.0), official Google Cloud mirror storage.googleapis.com/ecmwf-open-data (same files as AWS/ECMWF), 12Z D-2 run, SSRD steps 30..48 h -> 3 h means for target-day KST 04..21, fixed boxes 34-38N/126-130E (+N/S), no site coordinates",
+   "file": "C:/Users/dkrak/Documents/Codex/OIBC_1314_review/personal_safe/gfs/ecmwf_hourly.parquet",
+   "sha256": "9703ef512d175f98d6465d28caacd7d55b7875ab31f7936bef12471b05c32750"
+  }
+ },
+ "outputs_sha256": {
+  "composition.csv": "1e42864de9b9545f96b5700efd6682f90def2b8fb1483131ac052e5c331b38e2",
+  "forecast.csv": "07c194888c66e7021e382e9124d1f07053d1b5778f7b0e23e67d88ccd1323c6b"
+ },
+ "test_actuals_used": false,
+ "base_v10s": {
+  "forecast_sha256": "27af8fd9d73f3063d8bb47c268b0420e3de1d383607c0f7baa893f52c280e615",
+  "note": "v10 with E and B21 averaged over seeds 0,1,2,3 (final_site E_gx+E_gx_s23, B21_gx+B21_gx_s23), same external inputs as v10 (GFS 00Z D-1 box hourly + day-model box features ECMWF 12Z D-2 / GFS 00Z D-1)"
+ }
+}

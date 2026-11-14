@@ -1,6 +1,7 @@
 """12-month re-tune of v7 blend weights (E, B21, H1) and day-correction share alpha, v7 composition.
 
-Usage: eval_12m.py <dataset> <personal_safe> <comp.csv> <out_json>
+Usage: eval_12m.py <dataset> <personal_safe> <comp.csv> <out_json> [day_suffix] [site_suffix]
+(suffixes select v10-style OOF: e.g. _rich _gx; baseline is then the same files at 0.35/0.35/0.30, alpha 0.5)
 Site OOF: 5 folds (site_level_E_5f, day23, day21) + 7 folds (*_7f), B21 12m; H1 group_cv_comp (12 m).
 v7 = (0.35 E + 0.35 B21 + 0.30 H1) * (1 + 0.5 (rd - 1)).
 Grid: wE, wB in 0..1 step 0.05 (wH = 1 - wE - wB >= 0), alpha in 0..1 step 0.1.
@@ -18,6 +19,8 @@ import pandas as pd
 D, PS, COMP, OUT = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4])
 KST = "Asia/Seoul"
 cv = PS / "cv"
+DS = sys.argv[5] if len(sys.argv) > 5 else ""
+SS = sys.argv[6] if len(sys.argv) > 6 else ""
 grp = pd.read_csv(COMP).set_index("site_id").group
 
 
@@ -29,10 +32,10 @@ def load(fs, cols):
     return pd.concat(out, ignore_index=True)
 
 
-e = load(["site_level_E_5f.parquet", "site_level_E_7f.parquet"], ["energy", "smp", "k", "E"])
-b = load(["site_level_B21_12m.parquet"], ["B"]).rename(columns={"B": "B21"})
-d23 = load(["site_level_day23.parquet", "site_level_day23_7f.parquet"], ["B", "D_s0", "D_s1"]).rename(columns={"B": "h23", "D_s0": "d23a", "D_s1": "d23b"})
-d21 = load(["site_level_day21.parquet", "site_level_day21_7f.parquet"], ["B", "D_s0", "D_s1"]).rename(columns={"B": "h21", "D_s0": "d21a", "D_s1": "d21b"})
+e = load([f"site_level_E_5f{SS}.parquet", f"site_level_E{SS}_7f.parquet"], ["energy", "smp", "k", "E"])
+b = load([f"site_level_B21_12m{SS}.parquet"], ["B"]).rename(columns={"B": "B21"})
+d23 = load([f"site_level_day23{DS}.parquet", f"site_level_day23{DS}_7f.parquet"], ["B", "D_s0", "D_s1"]).rename(columns={"B": "h23", "D_s0": "d23a", "D_s1": "d23b"})
+d21 = load([f"site_level_day21{DS}.parquet", f"site_level_day21{DS}_7f.parquet"], ["B", "D_s0", "D_s1"]).rename(columns={"B": "h21", "D_s0": "d21a", "D_s1": "d21b"})
 k = ["site_id", "ts", "fold"]
 s = e.merge(b, on=k).merge(d23, on=k).merge(d21, on=k)
 print("site rows", len(s), "folds", sorted(s.fold.unique()), flush=True)
@@ -44,7 +47,7 @@ gd = g.groupby(["fold", "group", "day"])[["h23", "d23a", "d23b", "h21", "d21a", 
 r = lambda dc, hc: (gd[dc] / gd[hc].where(gd[hc] > 1)).fillna(1.0)
 gd["rd"] = (r("d23a", "h23") + r("d23b", "h23") + r("d21a", "h21") + r("d21b", "h21")) / 4
 g = g.merge(gd[["rd"]].reset_index(), on=["fold", "group", "day"])
-h = pd.read_parquet(cv / "group_cv_comp.parquet"); h["ts"] = pd.to_datetime(h.ts).dt.tz_convert(KST)
+h = pd.read_parquet(cv / f"group_cv_comp{__import__('os').environ.get('OIBC_HSUF', '')}.parquet"); h["ts"] = pd.to_datetime(h.ts).dt.tz_convert(KST)
 g = g.merge(h[["group", "ts", "H1"]], on=["group", "ts"], how="inner")
 w = (0.1 * g.smp * g.k).to_numpy()
 months = sorted(g.fold.unique())

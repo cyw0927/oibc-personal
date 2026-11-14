@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 import pandas as pd
 PS, COMP, SUF = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+SSUF = sys.argv[4] if len(sys.argv) > 4 else ""   # optional site-model suffix: site_level_E{SSUF}_7f, site_level_B21_12m{SSUF}
 cv, K = PS / "cv", "Asia/Seoul"
 grp = pd.read_csv(COMP).set_index("site_id").group
 
@@ -14,9 +15,9 @@ def load(f, cols):
     return x[["site_id", "ts", "fold"] + cols]
 
 
-def run(s23, s21):
-    e = load("site_level_E_7f.parquet", ["energy", "smp", "k", "E"])
-    b = load("site_level_B21_12m.parquet", ["B"]).rename(columns={"B": "B21"})
+def run(s23, s21, ss=""):
+    e = load(f"site_level_E{ss}_7f.parquet", ["energy", "smp", "k", "E"])
+    b = load(f"site_level_B21_12m{ss}.parquet", ["B"]).rename(columns={"B": "B21"})
     k = ["site_id", "ts", "fold"]
     s = e.merge(b, on=k)
     for n, f in (("23", s23), ("21", s21)):
@@ -28,13 +29,13 @@ def run(s23, s21):
     r = lambda d, h: (gd[d] / gd[h].where(gd[h] > 1)).fillna(1.0)
     gd["rd"] = (r("d23a", "h23") + r("d23b", "h23") + r("d21a", "h21") + r("d21b", "h21")) / 4
     g = g.merge(gd[["rd"]].reset_index(), on=["fold", "group", "day"])
-    h = pd.read_parquet(cv / "group_cv_comp.parquet"); h["ts"] = pd.to_datetime(h.ts).dt.tz_convert(K)
+    h = pd.read_parquet(cv / f"group_cv_comp{__import__('os').environ.get('OIBC_HSUF', '')}.parquet"); h["ts"] = pd.to_datetime(h.ts).dt.tz_convert(K)
     g = g.merge(h[["group", "ts", "H1"]], on=["group", "ts"])
     p = (0.35 * g.E + 0.35 * g.B21 + 0.3 * g.H1) * (1 + 0.5 * (g.rd - 1))
     return (0.1 * g.smp * g.kk * (p - g.energy).abs()).groupby(g.fold).sum() / 1e6, len(g)
 
 
 a, n = run("site_level_day23_7f.parquet", "site_level_day21_7f.parquet")
-b, m = run(f"site_level_day23{SUF}_7f.parquet", f"site_level_day21{SUF}_7f.parquet")
+b, m = run(f"site_level_day23{SUF}_7f.parquet", f"site_level_day21{SUF}_7f.parquet", SSUF)
 r = pd.DataFrame({"v7": a, "cand": b}); r["pct"] = (100 * (r.cand / r.v7 - 1)).round(2)
 print(r.round(3).to_string()); print("rows", n, m, "total", round(a.sum(), 3), round(b.sum(), 3), f"{100 * (b.sum() / a.sum() - 1):+.2f}%", "months better", int((r.cand < r.v7).sum()), "/", len(r))

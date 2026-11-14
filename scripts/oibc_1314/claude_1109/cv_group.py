@@ -1,6 +1,7 @@
 """12 monthly expanding-window folds (2024-06 .. 2025-05) for the group-direct model H1 (and H0).
 
-Usage: cv_group.py <dataset> <feat_full_dir> <out_parquet>
+Usage: cv_group.py <dataset> <feat_full_dir> <out_parquet> [spatial] [echr=<hourly fixed-box parquet>]
+echr: merge hourly external fixed-box features (gx_*) on ts and fit only H1 = base + ctx + gx.
 Pred = cf * cap_avail (available cohort), README provisional group penalty. Train from 2023-06-01 01:00 to fold start.
 """
 import sys
@@ -27,6 +28,13 @@ ft["ts"] = ft.ts.dt.as_unit("us")
 base = [c for c in ft.columns if c not in NON]
 ft, new = add_ctx(ft)
 SPATIAL = len(sys.argv) > 4 and sys.argv[4] == "spatial"
+ECHR = next((a[5:] for a in sys.argv[4:] if a.startswith("echr=")), None)
+gx = []
+if ECHR:
+    eh = pd.read_parquet(ECHR); eh["ts"] = pd.to_datetime(eh.ts).dt.tz_convert(KST).dt.as_unit("us")
+    gx = [c for c in eh.columns if c != "ts"]
+    ft = ft.merge(eh, on="ts", how="left")
+    print("echr cols", len(gx), "coverage", round(ft[gx[0]].notna().mean(), 3), flush=True)
 sp = []
 if SPATIAL:
     pcs = pd.read_parquet(Path(sys.argv[2]).parent / "spatial" / "pcs_train.parquet")
@@ -45,7 +53,7 @@ for M in pd.period_range("2024-06", "2025-05", freq="M"):
     tr = ft[(ft.ts < st) & ft.energy.notna() & (ft["cov"] >= 0.3) & (ft.cosz_max > 0)]
     te = ft[(ft.ts >= st) & (ft.ts <= en) & ft.energy.notna()].copy()
     sw = tr["cov"].values * tr.k.values * np.clip(tr.smp.values, 1, None) / tr.smp.clip(lower=1).mean()
-    arms = (("H1", base + new), ("H2", base + new + sp)) if SPATIAL else (("H0", base), ("H1", base + new))
+    arms = (("H1", base + new), ("H2", base + new + sp)) if SPATIAL else (("H1", base + new + gx),) if ECHR else (("H0", base), ("H1", base + new))
     for name, feats in arms:
         cf = np.mean([np.clip(HistGradientBoostingRegressor(loss="absolute_error", l2_regularization=1.0,
                                                             early_stopping=False, random_state=0, **c)
