@@ -1,4 +1,4 @@
-"""Final candidate after the one-shot HOLDOUT test (protocol docs/holdout_final_test_protocol_20261109.md, decision H1).
+"""Final candidate after the one-shot HOLDOUT test (protocol docs/experiments/holdout_final_test_protocol_20261109.md, decision H1).
 
 forecast = 0.4 * FS2+L1 3-seed site sum + 0.6 * group-direct H1 (v0.2 features + day context), fit on the full
 training range 2023-06-01 01:00 ~ 2025-06-01 00:00. VPP = #990 reference. Nothing is submitted.
@@ -99,7 +99,7 @@ monthly = (old.groupby("m").forecast_kwh.sum() / old.groupby("m").v2.sum() - 1).
 man = {
     "candidate_id": OUT.name, "issue": "#1314 personal", "status": "SUBMISSION_CANDIDATE_UNAPPROVED", "official_S": None,
     "method": "0.4 * FS2+L1 3-seed site sum + 0.6 * group-direct H1 (v0.2 40 features + 70 day-context features, HGB L1, weight cov*k*SMP, 3-config mean); #990 reference VPP",
-    "protocol": "oibc-personal docs/holdout_final_test_protocol_20261109.md (HOLDOUT one-shot test: H0 57.402M -> H1 53.779M, decision H1)",
+    "protocol": "oibc-personal docs/experiments/holdout_final_test_protocol_20261109.md (HOLDOUT one-shot test: H0 57.402M -> H1 53.779M, decision H1)",
     "fit_window": ["2023-06-01 01:00:00+09:00", "2025-06-01 00:00:00+09:00"], "holdout_used": "final test once + final training (user decision 11/09)",
     "fs2l1_part": "unchanged LightGBM FS2+L1 test prediction (fit to 2025-02), alpha 0.4 fixed",
     "external_data": False, "observed_weather_used": False,

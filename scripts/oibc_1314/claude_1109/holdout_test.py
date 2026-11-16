@@ -1,4 +1,4 @@
-"""One-shot HOLDOUT test (pre-registered: docs/holdout_final_test_protocol_20261109.md). H0 = v0.2 features, H1 = + day context.
+"""One-shot HOLDOUT test (pre-registered: docs/experiments/holdout_final_test_protocol_20261109.md). H0 = v0.2 features, H1 = + day context.
 
 Usage: holdout_test.py <dataset> <feat_full_dir> <out_json>
 Fit 2023-06-01 01:00 ~ 2025-02-28 00:00, evaluate 2025-03-01 01:00 ~ 2025-06-01 00:00 (README provisional group penalty).
@@ -51,7 +51,7 @@ ho["H0"] = predict(base)
 ho["H1"] = predict(base + new)
 ho["m"] = ho.ts.dt.strftime("%Y-%m")
 w = 0.1 * ho.smp * ho.k
-res = {"protocol": "docs/holdout_final_test_protocol_20261109.md", "n_rows": int(len(ho)), "cov_mean": float(ho["cov"].mean()),
+res = {"protocol": "docs/experiments/holdout_final_test_protocol_20261109.md", "n_rows": int(len(ho)), "cov_mean": float(ho["cov"].mean()),
        "n_base": len(base), "n_new": len(new)}
 for h in ("H0", "H1"):
     pen = (w * (ho[h] - ho.energy).abs())

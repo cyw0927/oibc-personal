@@ -192,6 +192,6 @@ v11과 v12 이후에도 입력을 더 늘리거나 배합을 바꿔 봤지만, �
 ## 20. 최종 산출물
 
 - 제출 파일과 설명: `final/v14s/` (composition 1e42864d, forecast 07c19488, MANIFEST, 모델 설명서, 검증기 결과)
-- 버전별 설명서: `final/v9_모델설명.md`, `final/v10_모델설명.md`
+- 버전별 설명서: [`final/model_notes/v9_모델설명.md`](../final/model_notes/v9_모델설명.md), [`final/model_notes/v10_모델설명.md`](../final/model_notes/v10_모델설명.md)
 - 실험 코드: `scripts/oibc_1314/claude_1109/` (v14s 생성 `final_v14.py`, 유사 기상일 `anen.py`, 물리 모델 `phys_blend_exp.py`, 외부 예보 수집 `gfs_rich_fetch.py`·`ecmwf_hourly_gcp_fetch.py`·`ecmwf_00z_fetch.py`)
 - 상세 실험 기록: 저장소 밖 `icn-solar-oibc/status/claude.md`, `codex.md`
